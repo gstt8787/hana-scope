@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0812">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HANA Scope">
+    <meta name="description" content="スマート沖スロ スターハナハナの設定推測（ホール実戦用カウンター付き）とモンテカルロシミュレーション">
+    <title>HANA Scope</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./icons/hana-scope.svg">
+    <link rel="stylesheet" href="./src/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <a class="wordmark" href="#estimate" aria-label="HANA Scope ホーム">HANA<span>Scope</span></a>
+        <span class="local-chip"><i></i>端末内計算</span>
+      </header>
+
+      <nav class="segmented-nav" aria-label="主要画面">
+        <button class="is-active" type="button" data-screen="estimate" aria-current="page">設定推測</button>
+        <button type="button" data-screen="simulation">シミュレーション</button>
+      </nav>
+
+      <section class="screen is-active" id="estimate-screen" data-screen-panel="estimate">
+        <p class="kicker">LIVE ESTIMATE</p>
+        <h1>いまの台をその場で推測</h1>
+        <p class="screen-helper">データカウンターの数字と、座ってから自分で見た示唆を入れると自動で更新</p>
+
+        <form id="estimate-form" novalidate>
+          <div class="group-heading">
+            <h2 class="group-title">台データ（データカウンター）</h2>
+            <button class="text-button danger" type="button" data-action="reset-observed">台を変える（全部リセット）</button>
+          </div>
+          <div class="input-grid input-grid-three">
+            <label class="number-field">
+              <span>総ゲーム</span>
+              <span class="input-line"><input name="games" type="number" min="0" step="1" value="0" inputmode="numeric"><b>G</b></span>
+            </label>
+            <label class="number-field">
+              <span>BIG</span>
+              <span class="input-line"><input name="big" type="number" min="0" step="1" value="0" inputmode="numeric"><b>回</b></span>
+            </label>
+            <label class="number-field">
+              <span>REG</span>
+              <span class="input-line"><input name="regular" type="number" min="0" step="1" value="0" inputmode="numeric"><b>回</b></span>
+            </label>
+          </div>
+
+          <div class="group-heading">
+            <h2 class="group-title">座ってから自分で見た分</h2>
+            <span class="group-note">ボーナスごとにタップ</span>
+          </div>
+          <div class="counter-grid">
+            <div class="counter" data-counter="watchedBig">
+              <span>見たBIG</span>
+              <div class="counter-controls">
+                <button type="button" data-step="-1" aria-label="見たBIGを1減らす">−</button>
+                <output name="watchedBig">0</output>
+                <button type="button" data-step="1" aria-label="見たBIGを1増やす">＋</button>
+              </div>
+            </div>
+            <div class="counter" data-counter="bigWatermelon">
+              <span>BIG中スイカ</span>
+              <div class="counter-controls">
+                <button type="button" data-step="-1" aria-label="BIG中スイカを1減らす">−</button>
+                <output name="bigWatermelon">0</output>
+                <button type="button" data-step="1" aria-label="BIG中スイカを1増やす">＋</button>
+              </div>
+            </div>
+            <div class="counter" data-counter="watchedReg">
+              <span>見たREG</span>
+              <div class="counter-controls">
+                <button type="button" data-step="-1" aria-label="見たREGを1減らす">−</button>
+                <output name="watchedReg">0</output>
+                <button type="button" data-step="1" aria-label="見たREGを1増やす">＋</button>
+              </div>
+            </div>
+          </div>
+
+          <fieldset class="colour-group" data-evidence="regSideLamp">
+            <legend>REG中サイドランプ <small>白7ビタ押しでスイカが揃った時の色</small></legend>
+            <div class="colour-counters">
+              <button type="button" class="colour-chip blue" data-colour="blue" aria-label="青を1回追加">青<output>0</output></button>
+              <button type="button" class="colour-chip yellow" data-colour="yellow" aria-label="黄を1回追加">黄<output>0</output></button>
+              <button type="button" class="colour-chip green" data-colour="green" aria-label="緑を1回追加">緑<output>0</output></button>
+              <button type="button" class="colour-chip red" data-colour="red" aria-label="赤を1回追加">赤<output>0</output></button>
+              <button type="button" class="colour-chip rainbow" data-colour="rainbow" aria-label="虹を1回追加">虹<output>0</output></button>
+              <button type="button" class="undo-button" data-action="undo" data-evidence="regSideLamp" disabled>1つ戻す</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="colour-group" data-evidence="featherAfterBig">
+            <legend>フェザーランプ BIG後 <small>白以外が光った時だけ</small></legend>
+            <div class="colour-counters">
+              <button type="button" class="colour-chip blue" data-colour="blue" aria-label="BIG後の青を1回追加">青<output>0</output></button>
+              <button type="button" class="colour-chip yellow" data-colour="yellow" aria-label="BIG後の黄を1回追加">黄<output>0</output></button>
+              <button type="button" class="colour-chip green" data-colour="green" aria-label="BIG後の緑を1回追加">緑<output>0</output></button>
+              <button type="button" class="colour-chip red" data-colour="red" aria-label="BIG後の赤を1回追加">赤<output>0</output></button>
+              <button type="button" class="colour-chip rainbow" data-colour="rainbow" aria-label="BIG後の虹を1回追加">虹<output>0</output></button>
+              <button type="button" class="undo-button" data-action="undo" data-evidence="featherAfterBig" disabled>1つ戻す</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="colour-group" data-evidence="featherAfterReg">
+            <legend>フェザーランプ REG後 <small>白以外が光った時だけ・確定系</small></legend>
+            <div class="colour-counters">
+              <button type="button" class="colour-chip blue" data-colour="blue" aria-label="REG後の青を1回追加">青<output>0</output></button>
+              <button type="button" class="colour-chip yellow" data-colour="yellow" aria-label="REG後の黄を1回追加">黄<output>0</output></button>
+              <button type="button" class="colour-chip green" data-colour="green" aria-label="REG後の緑を1回追加">緑<output>0</output></button>
+              <button type="button" class="colour-chip red" data-colour="red" aria-label="REG後の赤を1回追加">赤<output>0</output></button>
+              <button type="button" class="colour-chip rainbow" data-colour="rainbow" aria-label="REG後の虹を1回追加">虹<output>0</output></button>
+              <button type="button" class="undo-button" data-action="undo" data-evidence="featherAfterReg" disabled>1つ戻す</button>
+            </div>
+          </fieldset>
+
+          <label class="toggle-row">
+            <input type="checkbox" name="useAnalysisEvidence" checked>
+            <span>解析サイトの数値も使う<small>スイカ・ランプの振り分けはメーカー非公表。切ると公式のボーナス確率だけで推測</small></span>
+          </label>
+
+          <p class="form-error" id="estimate-error" role="alert"></p>
+          <button class="primary-button" type="submit">設定を推測する</button>
+        </form>
+
+        <div id="estimate-result"></div>
+
+        <section class="prior-panel" id="prior-panel" hidden>
+          <h2>店状況の重み付け</h2>
+          <p>設定の入りやすさを任意で入力します。データ適合度とは別に表示します。</p>
+          <div class="prior-grid" id="prior-grid"></div>
+          <button class="secondary-button" type="button" data-action="apply-prior">重み付けを反映</button>
+        </section>
+      </section>
+
+      <section class="screen" id="simulation-screen" data-screen-panel="simulation" hidden>
+        <div id="simulation-overview">
+          <p class="kicker">MONTE CARLO</p>
+          <h1 id="simulation-title">8,000Gのブレを1万回ぶん見る</h1>
+          <p class="screen-helper">スターハナハナの設定1〜6を同じ条件で試行</p>
+
+          <form id="simulation-form" novalidate>
+            <div class="simulation-input-grid">
+              <label class="number-field">
+                <span>1回のゲーム数</span>
+                <span class="input-line"><input name="games" type="number" min="100" max="30000" step="100" value="8000" inputmode="numeric"><b>G</b></span>
+              </label>
+              <label class="number-field">
+                <span>各設定の試行</span>
+                <span class="input-line"><input name="trials" type="number" min="100" max="100000" step="100" value="10000" inputmode="numeric"><b>回</b></span>
+              </label>
+              <label class="number-field compact-field">
+                <span>乱数シード</span>
+                <span class="input-line"><input name="seed" type="number" step="1" value="20260805" inputmode="numeric"></span>
+              </label>
+              <label class="number-field compact-field">
+                <span>換算単価</span>
+                <span class="input-line"><input name="coinValueYen" type="number" min="0" max="100" step="0.1" value="20" inputmode="decimal"><b>円/枚</b></span>
+              </label>
+            </div>
+            <p class="form-error" id="simulation-error" role="alert"></p>
+            <button class="primary-button simulation-start" type="submit" id="simulation-start">6設定をシミュレーション</button>
+            <div class="simulation-progress" id="simulation-progress" hidden>
+              <div><span id="simulation-status">準備中</span><strong id="simulation-percent">0%</strong></div>
+              <progress max="6" value="0"></progress>
+              <button type="button" id="simulation-cancel">現在の設定後に中止</button>
+            </div>
+          </form>
+
+          <div id="simulation-result"></div>
+        </div>
+        <div id="run-detail" hidden></div>
+      </section>
+    </main>
+    <script type="module" src="./src/app.mjs"></script>
+  </body>
+</html>
