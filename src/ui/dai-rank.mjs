@@ -354,17 +354,24 @@ function askPhrase(panel, box, sealed, message = '') {
   });
 }
 
+// 開いた時は「台番の順位」を最初に出す（本人 2026-10-16 17:09）。台番の数字が無い時は今まで通り設定推測から
+function showFirst(button) {
+  button.hidden = false;
+  button.click();
+  window.scrollTo({ top: 0 });
+}
+
 export async function initDaiRank({ button, panel, url = './data/dai-rank.json' }) {
   if (!button || !panel) return;
   const plain = await fetchJson(url);
   if (plain && Array.isArray(plain.tabs) && Array.isArray(plain.nos)) {
-    button.hidden = false;
+    showFirst(button);
     start(panel, plain);
     return;
   }
   const [box, sealed] = await Promise.all([fetchJson('./data/dai-rank.box.json'), fetchJson('./data/dai-rank.sealed.json')]);
   if (!box || !sealed || !globalThis.crypto?.subtle) return;
-  button.hidden = false;
+  showFirst(button);
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(REMEMBER)); } catch { saved = null; }
   if (saved) {
