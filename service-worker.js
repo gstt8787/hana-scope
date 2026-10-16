@@ -1,6 +1,6 @@
 // Network-first with cache fallback: online visits always pick up the latest files,
 // and the precached shell keeps the app working offline (e.g. inside a hall).
-const CACHE_NAME = 'hana-scope-v7';
+const CACHE_NAME = 'hana-scope-v8';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -39,8 +39,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
+  // 電波がある時は、ブラウザの使い回し（最大10分）を通さず、毎回いちばん新しい中身を確かめに行く
+  const fresh = event.request.mode === 'navigate' ? event.request.url : event.request;
   event.respondWith(
-    fetch(event.request)
+    fetch(fresh, { cache: 'no-cache' })
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
