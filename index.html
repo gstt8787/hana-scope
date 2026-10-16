@@ -21,6 +21,7 @@
       </header>
 
       <nav class="segmented-nav" aria-label="主要画面">
+        <button type="button" data-screen="dai-rank" id="dai-rank-tab" hidden>台番の順位</button>
         <button class="is-active" type="button" data-screen="estimate" aria-current="page">設定推測</button>
         <button type="button" data-screen="simulation">シミュレーション</button>
       </nav>
@@ -174,6 +175,7 @@
         </div>
         <div id="run-detail" hidden></div>
       </section>
+      <section class="screen" id="dai-rank-screen" data-screen-panel="dai-rank" hidden></section>
     </main>
     <script type="module" src="./src/app.mjs"></script>
   </body>

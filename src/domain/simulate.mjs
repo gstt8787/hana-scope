@@ -63,6 +63,9 @@ export function simulateSession({ machine, setting, games, seed, pathInterval = 
   let peakCoins = 0;
   let peakGame = 0;
   let maxDrawdown = 0;
+  let troughCoins = 0;
+  let peakHeldCoins = 0;
+  let peakHeldGame = 0;
   let maxDroughtGames = 0;
   let lastBonusGame = 0;
 
@@ -90,6 +93,12 @@ export function simulateSession({ machine, setting, games, seed, pathInterval = 
       peakGame = game;
     }
     maxDrawdown = Math.max(maxDrawdown, peakCoins - coins);
+    // 持ちメダル: 手持ちが尽きた時点で現金投資に切り替わるため、差枚からそれまでの最低差枚を引いた値になる
+    if (coins < troughCoins) troughCoins = coins;
+    if (coins - troughCoins > peakHeldCoins) {
+      peakHeldCoins = coins - troughCoins;
+      peakHeldGame = game;
+    }
 
     if (game % pathInterval === 0 || game === games) {
       path.push({ game, coins: roundCoins(coins) });
@@ -111,6 +120,8 @@ export function simulateSession({ machine, setting, games, seed, pathInterval = 
     peakGame,
     peakToEndDrawdown: roundCoins(roundedPeak - finalCoins),
     maxDrawdown: roundCoins(maxDrawdown),
+    peakHeldCoins: roundCoins(peakHeldCoins),
+    peakHeldGame,
     maxDroughtGames,
     events,
     path,

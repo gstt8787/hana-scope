@@ -1,4 +1,5 @@
 import { estimateSettings } from './domain/estimate.mjs';
+import { initDaiRank } from './ui/dai-rank.mjs';
 import { representativeRunToCsv } from './domain/csv.mjs';
 import { STAR_HANAHANA } from './domain/machine.mjs';
 import {
@@ -439,6 +440,8 @@ updateSimulationTitle(
 );
 syncEstimateForm();
 refreshEstimate();
+
+initDaiRank({ button: document.querySelector('#dai-rank-tab'), panel: document.querySelector('#dai-rank-screen') });
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {}));
