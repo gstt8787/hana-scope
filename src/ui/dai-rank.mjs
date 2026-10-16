@@ -309,8 +309,8 @@ async function openerFromPhrase(box, phrase) {
   const base = await subtle.importKey('raw', new TextEncoder().encode(normalizePhrase(phrase)), 'PBKDF2', false, ['deriveKey']);
   const wrapAes = await subtle.deriveKey({ name: 'PBKDF2', salt: unb64(box.salt), iterations: box.iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
   const pkcs8 = await subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, wrapAes, unb64(box.wrapped));
-  const opener = await subtle.importKey('pkcs8', pkcs8, CURVE, true, ['deriveKey']);
-  return { opener, jwk: await subtle.exportKey('jwk', opener) };
+  // 使う鍵は取り出せない形にする（前の覚え方に戻す端末の時だけ、pkcs8 から取り出せる形を作り直す）
+  return { opener: await subtle.importKey('pkcs8', pkcs8, CURVE, false, ['deriveKey']), pkcs8 };
 }
 
 async function openSealed(sealed, opener) {
@@ -319,6 +319,76 @@ async function openSealed(sealed, opener) {
   const aes = await subtle.deriveKey({ name: 'ECDH', public: eph }, opener, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
   const plain = await subtle.decrypt({ name: 'AES-GCM', iv: unb64(sealed.iv) }, aes, unb64(sealed.ct));
   return JSON.parse(new TextDecoder().decode(plain));
+}
+
+// 開ける方の鍵は「取り出せない形」で端末の保管箱（IndexedDB）に覚える（2026-10-16 安全点検）。
+// 同じ住所（gstt8787.github.io）のほかのページが外から読む部品を使っていても、鍵そのものは持ち出せない。
+// 保管箱に入らない端末と、入れた鍵が後で使えなくなった端末だけ、前の覚え方（localStorage）に戻す。
+const VAULT = 'hana-scope-dai-rank';
+const VAULT_SHELF = 'unlock';
+const VAULT_ITEM = 'opener';
+const VAULT_OFF = 'hana-scope:dai-rank-vault-off';
+
+function vault(mode, act) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(VAULT, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(VAULT_SHELF);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      try {
+        const tx = db.transaction(VAULT_SHELF, mode);
+        const step = act(tx.objectStore(VAULT_SHELF));
+        tx.oncomplete = () => { db.close(); resolve(step.result); };
+        tx.onerror = tx.onabort = () => { db.close(); reject(tx.error); };
+      } catch (error) {
+        db.close();
+        reject(error);
+      }
+    };
+  });
+}
+
+function vaultOff() {
+  try { return localStorage.getItem(VAULT_OFF) === '1'; } catch { return false; }
+}
+
+// 覚える: 保管箱へ入れて読み戻せたら、前の覚え方の写しを消す。入らない端末は前の覚え方で覚える
+async function rememberOpener(opener, makeJwk) {
+  if (!vaultOff()) {
+    try {
+      await vault('readwrite', (shelf) => shelf.put(opener, VAULT_ITEM));
+      const back = await vault('readonly', (shelf) => shelf.get(VAULT_ITEM));
+      if (back && back.extractable === false) {
+        try { localStorage.removeItem(REMEMBER); } catch { /* なし */ }
+        return;
+      }
+    } catch { /* 保管箱が使えない端末 */ }
+  }
+  try { localStorage.setItem(REMEMBER, JSON.stringify(await makeJwk())); } catch { /* 覚えられない端末でも、今回は開く */ }
+}
+
+// 保管箱の鍵で開く。鍵が壊れて使えない時は、この端末では次から前の覚え方に戻す（合言葉を毎回聞く形にはしない）。
+// 鍵は使えるのに開かない時（鍵の組を作り直した後）は、鍵を忘れて合言葉を聞き直す
+async function openFromVault(sealed) {
+  if (vaultOff()) return null;
+  let kept = null;
+  try { kept = await vault('readonly', (shelf) => shelf.get(VAULT_ITEM)); } catch { return null; }
+  if (!kept) return null;
+  const subtle = globalThis.crypto.subtle;
+  let usable = false;
+  try {
+    const eph = await subtle.importKey('jwk', sealed.epk, CURVE, false, []);
+    await subtle.deriveKey({ name: 'ECDH', public: eph }, kept, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    usable = true;
+    return await openSealed(sealed, kept);
+  } catch {
+    if (!usable) {
+      try { localStorage.setItem(VAULT_OFF, '1'); } catch { /* なし */ }
+    }
+    try { await vault('readwrite', (shelf) => shelf.delete(VAULT_ITEM)); } catch { /* なし */ }
+    return null;
+  }
 }
 
 function start(panel, data) {
@@ -341,16 +411,19 @@ function askPhrase(panel, box, sealed, message = '') {
     event.preventDefault();
     const msg = panel.querySelector('#dr-lock-msg');
     msg.textContent = '開いています…';
+    let opened = null;
     try {
-      const { opener, jwk } = await openerFromPhrase(box, panel.querySelector('#dr-phrase').value);
-      const data = await openSealed(sealed, opener);
-      if (panel.querySelector('#dr-remember').checked) {
-        try { localStorage.setItem(REMEMBER, JSON.stringify(jwk)); } catch { /* 覚えられない端末でも、今回は開く */ }
-      }
-      start(panel, data);
+      const { opener, pkcs8 } = await openerFromPhrase(box, panel.querySelector('#dr-phrase').value);
+      opened = { opener, pkcs8, data: await openSealed(sealed, opener) };
     } catch {
       msg.textContent = '合言葉が違います。もう一度入れてください。';
+      return;
     }
+    if (panel.querySelector('#dr-remember').checked) {
+      const subtle = globalThis.crypto.subtle;
+      await rememberOpener(opened.opener, async () => subtle.exportKey('jwk', await subtle.importKey('pkcs8', opened.pkcs8, CURVE, true, ['deriveKey'])));
+    }
+    start(panel, opened.data);
   });
 }
 
@@ -372,16 +445,29 @@ export async function initDaiRank({ button, panel, url = './data/dai-rank.json' 
   const [box, sealed] = await Promise.all([fetchJson('./data/dai-rank.box.json'), fetchJson('./data/dai-rank.sealed.json')]);
   if (!box || !sealed || !globalThis.crypto?.subtle) return;
   showFirst(button);
+  const fromVault = await openFromVault(sealed);
+  if (fromVault) {
+    start(panel, fromVault);
+    return;
+  }
+  // 前の覚え方（localStorage）の鍵。開けたら保管箱へ引っ越す（合言葉の入れ直しは要らない）
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(REMEMBER)); } catch { saved = null; }
   if (saved) {
+    let opener = null;
+    let data = null;
     try {
-      const opener = await globalThis.crypto.subtle.importKey('jwk', saved, CURVE, true, ['deriveKey']);
-      start(panel, await openSealed(sealed, opener));
-      return;
+      opener = await globalThis.crypto.subtle.importKey('jwk', saved, CURVE, false, ['deriveKey']);
+      data = await openSealed(sealed, opener);
     } catch {
-      try { localStorage.removeItem(REMEMBER); } catch { /* なし */ }
+      data = null;
     }
+    if (data) {
+      await rememberOpener(opener, async () => saved);
+      start(panel, data);
+      return;
+    }
+    try { localStorage.removeItem(REMEMBER); } catch { /* なし */ }
   }
   askPhrase(panel, box, sealed);
 }
