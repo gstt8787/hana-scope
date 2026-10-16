@@ -72,18 +72,36 @@ function legendHtml() {
 }
 
 // 曜日別とイベント別で同じ形: ボタンの列 → 色の見本 → 見出し → 13台の帯 → 1台1行の表
-function seatView(data, chipsHtml, chipsClass, tab, foot) {
+// 日ごとの表: 1行が1日（日付と曜日・取材・日付の種類）、その下に13台の結果を台の並びどおりに
+function dayListHtml(data, days) {
+  if (!Array.isArray(data.days13) || !days.length) return '';
+  const head = data.nos.map((no) => `<i>${Number(no)}</i>`).join('');
+  const rows = days.map((d) => {
+    const k = d.s.filter((v) => v).length;
+    const n = d.s.filter((v) => v != null).length;
+    const tags = [...d.ev.filter((e) => e !== '（取材名なし）'), ...d.cal].map((t) => `<span>${esc(t)}</span>`).join('');
+    const cells = d.s.map((v) => `<b class="${v == null ? 'is-none' : v ? 'is-hi' : 'is-lo'}"></b>`).join('');
+    return `<div class="dr-day"><div class="dr-day-head"><strong>${esc(d.label)}</strong><span class="dr-day-tags">${tags}</span><em>${k}/${n}台</em></div><div class="dr-dots">${cells}</div></div>`;
+  }).join('');
+  return `<h2 class="dr-title">日ごとの表<span>上の表の${days.length}日分。新しい日が上。丸は左から台の並びどおり。赤＝高設定並み、灰＝回ったが届かず、点線＝数字なし</span></h2>
+    <div class="dr-dots dr-dots-head">${head}</div>
+    <div class="dr-daylist">${rows}</div>`;
+}
+
+function seatView(data, chipsHtml, chipsClass, tab, foot, days = []) {
   return `<div class="${chipsClass}" role="tablist">${chipsHtml}</div>
     <div class="dr-legend">${legendHtml()}<span class="dr-legend-top">枠＝1〜3位</span></div>
     <h2 class="dr-title">${esc(tab.title)}<span>${Number(tab.days)}日分・スタハナ全体 ${pctOf(tab.hi, tab.n)}%（${Number(tab.hi)}/${Number(tab.n)}）</span></h2>
     ${stripHtml(data, tab)}
     ${listHtml(data, tab)}
+    ${dayListHtml(data, days)}
     <p class="dr-foot">${foot}</p>`;
 }
 
 function weekHtml(data, tab) {
   const chips = data.tabs.map((t) => `<button type="button" class="dr-tab${t.id === tab.id ? ' is-active' : ''}" data-dr-tab="${esc(t.id)}">${esc(t.id)}</button>`).join('');
-  return seatView(data, chips, 'dr-tabs', tab, '台番ごとの差は、今の日数では偶然と見分けがつかない（「島のかたまり」参照）。順位は参考。');
+  const days = (data.days13 ?? []).filter((d) => tab.id === '全部' || d.dow === tab.id);
+  return seatView(data, chips, 'dr-tabs', tab, '台番ごとの差は、今の日数では偶然と見分けがつかない（「昼の目安」の下の表を参照）。順位は参考。', days);
 }
 
 function eventNames(data) {
@@ -108,8 +126,9 @@ function eventHtml(data, name) {
     .map((n) => `<button type="button" class="dr-tab dr-evtab${n === current ? ' is-active' : ''}" data-dr-ev="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`;
   const chips = row('event', '取材') + row('cal', '日付');
   const hidden = data.events.length - names.length;
+  const days = (data.days13 ?? []).filter((d) => d.ev.includes(current) || d.cal.includes(current));
   return seatView(data, chips, 'dr-evtabs', tab,
-    `ボタンは日数の多い順（同じなら割合の高い順）。横にすべらせると続きが出る。今の13台の並びになってからの日が無い${hidden}つは出していない。1つの台番で見ると、このイベントの日は数日しか無い。`);
+    `ボタンは日数の多い順（同じなら割合の高い順）。横にすべらせると続きが出る。今の13台の並びになってからの日が無い${hidden}つは出していない。1つの台番で見ると、このイベントの日は数日しか無い。`, days);
 }
 
 // かけ合わせ: 曜日・取材・日付の種類を1つずつ選び、重なる日だけで13台の表と日ごとの表を出す
@@ -154,22 +173,12 @@ function crossHtml(data, f) {
     return `${filters}<div class="dr-callout"><b>この組み合わせの日は無い。</b><span>どれかの段を「すべて」に戻す。</span></div>`;
   }
   const tab = tabFromDays(data, days, title);
-  const head = data.nos.map((no) => `<i>${Number(no)}</i>`).join('');
-  const rows = days.map((d) => {
-    const k = d.s.filter((v) => v).length;
-    const n = d.s.filter((v) => v != null).length;
-    const tags = [...d.ev.filter((e) => e !== '（取材名なし）'), ...d.cal].map((t) => `<span>${esc(t)}</span>`).join('');
-    const cells = d.s.map((v) => `<b class="${v == null ? 'is-none' : v ? 'is-hi' : 'is-lo'}"></b>`).join('');
-    return `<div class="dr-day"><div class="dr-day-head"><strong>${esc(d.label)}</strong><span class="dr-day-tags">${tags}</span><em>${k}/${n}台</em></div><div class="dr-dots">${cells}</div></div>`;
-  }).join('');
   return `${filters}
     <div class="dr-legend">${legendHtml()}<span class="dr-legend-top">枠＝1〜3位</span></div>
     <h2 class="dr-title">${esc(tab.title)}<span>${Number(tab.days)}日分・スタハナ全体 ${pctOf(tab.hi, tab.n)}%（${Number(tab.hi)}/${Number(tab.n)}）</span></h2>
     ${stripHtml(data, tab)}
     ${listHtml(data, tab)}
-    <h2 class="dr-title">日ごとの表<span>新しい日が上。丸は左から台の並びどおり。赤＝高設定並み、灰＝回ったが届かず、点線＝数字なし</span></h2>
-    <div class="dr-dots dr-dots-head">${head}</div>
-    <div class="dr-daylist">${rows}</div>
+    ${dayListHtml(data, days)}
     <p class="dr-foot">選んだ条件が全部そろう日だけを数える。ボタンの小さい数字は、ほかの段の選び方のまま、それを選んだ時の日数。</p>`;
 }
 
