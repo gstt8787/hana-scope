@@ -590,3 +590,45 @@ h1 {
 .dr-phrase { min-height: 48px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font-size: 18px; letter-spacing: .08em; -webkit-text-security: disc; }
 .dr-remember { display: flex; align-items: center; gap: 8px; color: #cfc8d8; font-size: 13px; }
 .dr-lock-msg { min-height: 1.4em; margin: 0; color: var(--coral); font-size: 13px; }
+
+/* 知識編（src/ui/knowledge.mjs）。報告の本文は pandoc＋tools/report-mobile.lua の形（表は狭い画面で1行1枚のカード） */
+.segmented-nav:has(> #knowledge-tab:not([hidden])) { grid-auto-columns: auto; }
+.segmented-nav:has(> #knowledge-tab:not([hidden])) button { font-size: 12px; padding: 0 6px; }
+.kn-list { display: grid; gap: 10px; }
+.kn-card { display: grid; gap: 4px; width: 100%; padding: 14px 14px 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
+.kn-kind { color: var(--pink); font-size: 11px; font-weight: 700; }
+.kn-title { font-size: 16px; line-height: 1.45; }
+.kn-lead { color: #cfc8d8; font-size: 12.5px; line-height: 1.6; }
+.kn-meta { color: var(--muted); font-size: 11px; font-style: normal; }
+.kn-foot { margin: 14px 0 0; color: var(--muted); font-size: 11px; }
+.kn-back { min-height: 38px; margin: 0 0 6px; padding: 0 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; }
+.kn-doc { margin: 0 0 14px; color: var(--text); font-size: 15px; line-height: 1.75; overflow-wrap: anywhere; }
+.kn-doc h1 { margin: 10px 0 10px; font-size: 21px; line-height: 1.45; letter-spacing: 0; }
+.kn-doc h2 { margin: 28px 0 10px; padding: 8px 12px; border-left: 5px solid var(--pink); border-radius: 8px; background: var(--surface); font-size: 17px; line-height: 1.5; scroll-margin-top: 64px; }
+.kn-doc h3 { margin: 20px 0 8px; font-size: 15.5px; line-height: 1.5; scroll-margin-top: 64px; }
+.kn-doc h4 { margin: 16px 0 6px; font-size: 14.5px; }
+.kn-doc p, .kn-doc li { font-size: 15px; }
+.kn-doc ul, .kn-doc ol { padding-left: 1.3em; }
+.kn-doc li { margin: 4px 0; }
+.kn-doc strong { color: var(--pink); }
+.kn-doc a { color: var(--cyan); }
+.kn-doc code { padding: 2px 6px; border-radius: 6px; background: var(--surface-inset); font-size: 12px; }
+.kn-doc blockquote { margin: 10px 0; padding: 4px 12px; border-left: 3px solid var(--border); color: #cfc8d8; }
+.kn-doc nav.toc { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; overflow-x: auto; margin: 0 0 4px; padding: 10px 0; background: var(--bg); scrollbar-width: none; }
+.kn-doc nav.toc::-webkit-scrollbar { display: none; }
+.kn-doc nav.toc a { flex: 0 0 auto; padding: 9px 14px; border-radius: 999px; background: #3a2230; color: var(--pink); font-size: 14px; font-weight: 700; line-height: 1; text-decoration: none; }
+.kn-doc table { width: 100%; margin: 8px 0 16px; border-collapse: collapse; background: var(--surface); font-size: 13px; }
+.kn-doc th, .kn-doc td { padding: 6px 8px; border: 1px solid var(--border); vertical-align: top; }
+.kn-doc th { background: #2a2038; font-weight: 600; }
+@media (min-width: 761px) { .kn-doc table { display: block; overflow-x: auto; } }
+@media (max-width: 760px) {
+  .kn-doc table.cards, .kn-doc table.cards thead, .kn-doc table.cards tbody { display: block; width: 100%; }
+  .kn-doc table.cards { background: transparent; }
+  .kn-doc table.cards thead { display: none; }
+  .kn-doc table.cards tr { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; margin: 0 0 12px; padding: 4px 14px 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  .kn-doc table.cards td { display: block; padding: 6px 0 0; border: 0; font-size: 14.5px; line-height: 1.5; text-align: left !important; }
+  .kn-doc table.cards td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11.5px; font-weight: 600; line-height: 1.4; }
+  .kn-doc table.cards td.wide { grid-column: 1 / -1; }
+  .kn-doc table.cards td:first-child { grid-column: 1 / -1; margin-bottom: 2px; padding: 8px 0 6px; border-bottom: 2px solid var(--border); color: var(--pink); font-size: 16px; font-weight: 800; }
+  .kn-doc table.cards td:first-child::before { display: none; }
+}

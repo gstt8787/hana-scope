@@ -1,6 +1,6 @@
 // Network-first with cache fallback: online visits always pick up the latest files,
 // and the precached shell keeps the app working offline (e.g. inside a hall).
-const CACHE_NAME = 'hana-scope-v9';
+const CACHE_NAME = 'hana-scope-v10';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -14,14 +14,15 @@ const APP_ASSETS = [
   './src/domain/random.mjs',
   './src/domain/simulate.mjs',
   './src/ui/dai-rank.mjs',
+  './src/ui/knowledge.mjs',
   './src/ui/render.mjs',
   './src/ui/view-model.mjs',
   './src/worker/protocol.mjs',
   './src/worker/simulation-worker.mjs'
 ];
 
-// 台番の順位の封をした数字（公開版にだけある。無くても入れ替えは止めない）
-const OPTIONAL_ASSETS = ['./data/dai-rank.box.json', './data/dai-rank.sealed.json'];
+// 台番の順位と知識編の封をした中身（公開版にだけある。無くても入れ替えは止めない）
+const OPTIONAL_ASSETS = ['./data/dai-rank.box.json', './data/dai-rank.sealed.json', './data/knowledge.sealed.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS)

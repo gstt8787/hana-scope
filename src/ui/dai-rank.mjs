@@ -289,6 +289,13 @@ const CURVE = { name: 'ECDH', namedCurve: 'P-256' };
 const REMEMBER = 'hana-scope:dai-rank-unlock';
 const unb64 = (text) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 
+// 知識編（src/ui/knowledge.mjs）も同じ開ける方の鍵で開く。鍵が手に入ったら知らせる（2026-10-18）
+let resolveOpener = () => {};
+const openerReady = new Promise((resolve) => { resolveOpener = resolve; });
+export function whenUnlocked() {
+  return openerReady;
+}
+
 async function fetchJson(url) {
   try {
     const response = await fetch(url, { cache: 'no-store' });
@@ -313,7 +320,7 @@ async function openerFromPhrase(box, phrase) {
   return { opener: await subtle.importKey('pkcs8', pkcs8, CURVE, false, ['deriveKey']), pkcs8 };
 }
 
-async function openSealed(sealed, opener) {
+export async function openSealed(sealed, opener) {
   const subtle = globalThis.crypto.subtle;
   const eph = await subtle.importKey('jwk', sealed.epk, CURVE, false, []);
   const aes = await subtle.deriveKey({ name: 'ECDH', public: eph }, opener, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
@@ -381,7 +388,9 @@ async function openFromVault(sealed) {
     const eph = await subtle.importKey('jwk', sealed.epk, CURVE, false, []);
     await subtle.deriveKey({ name: 'ECDH', public: eph }, kept, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
     usable = true;
-    return await openSealed(sealed, kept);
+    const opened = await openSealed(sealed, kept);
+    resolveOpener(kept);
+    return opened;
   } catch {
     if (!usable) {
       try { localStorage.setItem(VAULT_OFF, '1'); } catch { /* なし */ }
@@ -423,6 +432,7 @@ function askPhrase(panel, box, sealed, message = '') {
       const subtle = globalThis.crypto.subtle;
       await rememberOpener(opened.opener, async () => subtle.exportKey('jwk', await subtle.importKey('pkcs8', opened.pkcs8, CURVE, true, ['deriveKey'])));
     }
+    resolveOpener(opened.opener);
     start(panel, opened.data);
   });
 }
@@ -464,6 +474,7 @@ export async function initDaiRank({ button, panel, url = './data/dai-rank.json' 
     }
     if (data) {
       await rememberOpener(opener, async () => saved);
+      resolveOpener(opener);
       start(panel, data);
       return;
     }

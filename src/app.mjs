@@ -1,5 +1,6 @@
 import { estimateSettings } from './domain/estimate.mjs';
 import { initDaiRank } from './ui/dai-rank.mjs';
+import { initKnowledge } from './ui/knowledge.mjs';
 import { representativeRunToCsv } from './domain/csv.mjs';
 import { STAR_HANAHANA } from './domain/machine.mjs';
 import {
@@ -442,6 +443,11 @@ syncEstimateForm();
 refreshEstimate();
 
 initDaiRank({ button: document.querySelector('#dai-rank-tab'), panel: document.querySelector('#dai-rank-screen') });
+initKnowledge({
+  button: document.querySelector('#knowledge-tab'),
+  panel: document.querySelector('#knowledge-screen'),
+  rankButton: document.querySelector('#dai-rank-tab'),
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {}));
