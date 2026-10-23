@@ -8,7 +8,7 @@ const TIERS = [
   [0, '#cfd8dc', '#222'],
 ];
 const WEEK = '日月火水木金土';
-const VIEWS = [['week', '曜日別'], ['event', 'イベント別'], ['cross', 'かけ合わせ'], ['cluster', '昼の目安']];
+const VIEWS = [['week', '曜日別'], ['event', 'イベント別'], ['cross', 'かけ合わせ'], ['cluster', '昼の目安'], ['pick', 'ピックアップ']];
 const DAY_COLORS = ['#5b5368', '#fb8c00', '#e53935'];
 
 function tier(pct) {
@@ -237,18 +237,58 @@ function clusterHtml(data) {
     <p class="dr-foot">使い方: ホールでは、島の13台のデータカウンター（とくにREG）を見て、良さそうな台が何台あるかを数える。多い日は「入れている日」の見込みが上がり、自分の台も粘る価値が上がる。少ない日は早めに見切る。数字は1日の終わりの結果どうしの関係。昼の途中でどこまで読めるかは、まだ確かめていない。</p>`;
 }
 
+// ピックアップ: フェスメディアXの PICK UP（お店が選んで載せた台）の記録（本人 2026-10-24「出た台だけのデータも記録に加えていって」）
+// 選ばれなかった台の数字は載らないので割合は出さない。島まるごとの数字がある日だけ、選ばれた台と選ばれなかった台をくらべて見せる
+function pickHtml(data) {
+  const pk = data.picks;
+  const c = pk.check;
+  const pc = ([n, hi]) => pctOf(hi, n);
+  const lastFull = data.days13?.[0]?.label ?? '';
+  const callout = `<div class="dr-callout"><b>高設定並みの台は、ほぼ全部ピックアップの中にいた。</b>
+      <span>${esc(c.from)}〜${esc(c.to)}のフェスの日（${Number(c.days)}日）で、島まるごとの数字とくらべた。選ばれたスタハナは ${Number(c.pick[1])}/${Number(c.pick[0])}台（${pc(c.pick)}%）が高設定並み。選ばれなかった台は ${Number(c.other[1])}/${Number(c.other[0])}台（${pc(c.other)}%）。高設定並み${Number(c.hiTotal)}台のうち${Number(c.hiInPick)}台が、選ばれた台の中にいた。</span></div>`;
+  const total = data.nos.length;
+  const rows = data.nos.map((no, i) => {
+    const [n, h] = pk.count[String(no)] ?? [0, 0];
+    const hot = h ? ' style="background:#e53935;color:#fff"' : '';
+    return `<tr${n ? '' : ' class="is-few"'}><td class="dr-ps">${i + 1}</td><td class="dr-ps">${total - i}</td><td class="dr-no">${Number(no)}</td><td class="dr-ct">${Number(n)}/${Number(pk.nowDays)}日</td><td class="dr-pc"${hot}><b>${Number(h)}日</b></td></tr>`;
+  }).join('');
+  const head = data.nos.map((no) => `<i>${Number(no)}</i>`).join('');
+  const days = pk.days.map((d) => {
+    const picked = d.p.filter((v) => v).length;
+    const hi = d.p.filter((v) => v === 'h').length;
+    const cells = d.p.map((v, i) => {
+      if (v) return `<b class="is-pick ${v === 'h' ? 'is-hi' : v === 'l' ? 'is-lo' : 'is-short'}"></b>`;
+      const s = d.s ? d.s[i] : null;
+      return `<b class="${s == null ? 'is-none' : `${s ? 'is-hi' : 'is-lo'} is-faint`}"></b>`;
+    }).join('');
+    const nums = d.x.map(([no, g, diff, rate]) => `<span>${Number(no)}: ${Number(g).toLocaleString()}G ${diff > 0 ? '+' : ''}${Number(diff).toLocaleString()}枚${rate ? ` ${esc(rate)}` : ''}</span>`).join('');
+    const tags = d.ev.map((t) => `<span>${esc(t)}</span>`).join('');
+    return `<div class="dr-day"><div class="dr-day-head"><strong>${esc(d.label)}</strong><span class="dr-day-tags">${tags}</span><em>高設定並み${hi}/選${picked}台</em></div><div class="dr-dots">${cells}</div>${nums ? `<div class="dr-pick-nums">${nums}</div>` : ''}</div>`;
+  }).join('');
+  return `${callout}
+    <h2 class="dr-title">台番ごと<span>${esc(pk.nowFrom)}から（今の13台の並び）のフェスの${Number(pk.nowDays)}日。選ばれた日と、そのうち高設定並みだった日</span></h2>
+    <table class="dr-list"><thead><tr><th>左から</th><th>右から</th><th>台番</th><th>選ばれた</th><th>高設定並み</th></tr></thead><tbody>${rows}</tbody></table>
+    <h2 class="dr-title">日ごとの表<span>フェスの日。新しい日が上。白い枠＝お店が選んだ台（赤＝高設定並み・灰＝届かず・薄紫＝5,000G未満）。枠なし＝選ばれなかった台（${esc(lastFull)}までは島まるごとの結果を薄く、それより後は数字なし）</span></h2>
+    <div class="dr-dots dr-dots-head">${head}</div>
+    <div class="dr-daylist">${days}</div>
+    <p class="dr-foot">出どころ: ${esc(pk.source)}。選ばれなかった台の数字は載らないので、割合は出さない（上の囲みは、島まるごとの数字がある日だけでくらべた）。新しい日は「更新を確認して」のたびに足す。</p>`;
+}
+
 function render(panel, data, state) {
   const tab = data.tabs.find((t) => t.id === state.tab) ?? data.tabs[0];
-  const views = VIEWS.filter(([id]) => id === 'week' || (id === 'event' ? data.eventTabs : id === 'cross' ? data.days13 : data.cluster))
+  const has = { week: true, event: !!data.eventTabs, cross: !!data.days13, cluster: !!data.cluster, pick: !!data.picks };
+  const shown = VIEWS.filter(([id]) => has[id]);
+  const views = shown
     .map(([id, label]) => `<button type="button" class="dr-view${id === state.view ? ' is-active' : ''}" data-dr-view="${id}">${label}</button>`).join('');
   const body = state.view === 'event' ? eventHtml(data, state.ev)
     : state.view === 'cross' ? crossHtml(data, state.f ?? {})
-      : state.view === 'cluster' ? islandHtml(data, state) + clusterHtml(data) : weekHtml(data, tab);
+      : state.view === 'cluster' ? islandHtml(data, state) + clusterHtml(data)
+        : state.view === 'pick' && data.picks ? pickHtml(data) : weekHtml(data, tab);
   panel.innerHTML = `
     <p class="kicker">SEAT MAP</p>
     <h1>${esc(data.store)} ${esc(data.model)} 台番の順位</h1>
     <p class="screen-helper">台の正面から見た並びのまま。割合は${esc(data.rule)}が出た日の割合。灰色は${Number(data.minRankDays) - 1}日以下で順位なし。</p>
-    <div class="dr-views">${views}</div>
+    <div class="dr-views${shown.length >= 5 ? ' is-5' : ''}">${views}</div>
     ${body}
     <p class="dr-foot">台帳 ${esc(data.period)}（${esc(data.periodNote)}）・更新 ${esc(data.updated)}</p>`;
   panel.querySelectorAll('[data-dr-tab]').forEach((button) => {

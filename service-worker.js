@@ -1,6 +1,6 @@
 // Network-first with cache fallback: online visits always pick up the latest files,
 // and the precached shell keeps the app working offline (e.g. inside a hall).
-const CACHE_NAME = 'hana-scope-v10';
+const CACHE_NAME = 'hana-scope-v11';
 const APP_ASSETS = [
   './',
   './index.html',
