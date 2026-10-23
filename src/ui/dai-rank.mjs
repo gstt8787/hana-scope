@@ -244,8 +244,8 @@ function pickHtml(data) {
   const c = pk.check;
   const pc = ([n, hi]) => pctOf(hi, n);
   const lastFull = data.days13?.[0]?.label ?? '';
-  const callout = `<div class="dr-callout"><b>高設定並みの台は、ほぼ全部ピックアップの中にいた。</b>
-      <span>${esc(c.from)}〜${esc(c.to)}のフェスの日（${Number(c.days)}日）で、島まるごとの数字とくらべた。選ばれたスタハナは ${Number(c.pick[1])}/${Number(c.pick[0])}台（${pc(c.pick)}%）が高設定並み。選ばれなかった台は ${Number(c.other[1])}/${Number(c.other[0])}台（${pc(c.other)}%）。高設定並み${Number(c.hiTotal)}台のうち${Number(c.hiInPick)}台が、選ばれた台の中にいた。</span></div>`;
+  const callout = `<div class="dr-callout"><b>高設定並み${Number(c.hiTotal)}台のうち${Number(c.hiInPick)}台が、ピックアップの中にいた。</b>
+      <span>${esc(c.from)}〜${esc(c.to)}のフェスの日（${Number(c.days)}日）で、島まるごとの数字とくらべた。選ばれたスタハナは ${Number(c.pick[1])}/${Number(c.pick[0])}台（${pc(c.pick)}%）が高設定並み。選ばれなかった台は ${Number(c.other[1])}/${Number(c.other[0])}台（${pc(c.other)}%）。</span></div>`;
   const total = data.nos.length;
   const rows = data.nos.map((no, i) => {
     const [n, h] = pk.count[String(no)] ?? [0, 0];
